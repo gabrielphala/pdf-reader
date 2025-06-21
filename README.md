@@ -33,7 +33,7 @@ up to date, audited 196 packages in 3s
 found 0 vulnerabilities
 ```
 
-Express 15 has issues with wildcard routes so downgrade to 14 if necessary like so `npm i express@4.21.2`
+Express 5 has issues with wildcard routes so downgrade to 4 if necessary like so `npm i express@4.21.2`
 
 ```bash
 gabri@gabrielphala MINGW64 ~/Desktop/node/pdf-reader (main)
