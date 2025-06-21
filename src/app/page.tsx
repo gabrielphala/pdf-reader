@@ -1,7 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-
-import { useContext, useRef } from 'react';
+import { useContext, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFilePdf } from '@fortawesome/free-solid-svg-icons';
 
@@ -11,27 +10,25 @@ import { UserContext } from '@/contexts/UserContext';
 export default function Home() {
   const router = useRouter();
 
-  /**
-   * Refs to html elements to set / get data
-   */
+  // Refs to html elements
   const formRef = useRef<HTMLFormElement>(null);
   const submitBtnRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Context
   const { setUserData } = useContext(UserContext);
+
+  // Local state for selected file label
+  const [selectedFileName, setSelectedFileName] = useState('Click to upload file');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    /**
-     * Good practice for 'pseudo-debounce' effect
-     * Prevents too many submissions
-     */
+    // Disable submit button to prevent rapid submits
     if (submitBtnRef.current) {
       submitBtnRef.current.style.backgroundColor = '#999';
       submitBtnRef.current.disabled = true;
     }
-      
 
     const form = formRef.current;
     const fileInput = fileInputRef.current;
@@ -40,9 +37,6 @@ export default function Home() {
       return;
     }
 
-    /**
-     * Prepare to post user data and file data
-     */
     const formData = new FormData();
     formData.append('first-name', form['first-name'].value);
     formData.append('last-name', form['last-name'].value);
@@ -50,35 +44,27 @@ export default function Home() {
     formData.append('pdf-file', fileInput.files[0]);
 
     try {
-      /**
-       * Send a POST request to express.js server
-       */
       const res = await postWithAxios('/api/upload', formData);
 
-      /**
-       * When successful, set data in a context for later retrieval
-       */
       if (res.successful) {
         setUserData({
           fullName: res.fullName,
           age: res.age,
           text: res.text
-        })
-        
-        /**
-         * Navigate to results page
-         */
-        router.push('/results')
+        });
+
+        router.push('/results');
       }
 
-      /**
-       * Return button to normal state
-       */
       if (submitBtnRef.current) {
         submitBtnRef.current.style.backgroundColor = '#A10046';
         submitBtnRef.current.disabled = false;
       }
     } catch (err) {
+      if (submitBtnRef.current) {
+        submitBtnRef.current.style.backgroundColor = '#A10046';
+        submitBtnRef.current.disabled = false;
+      }
     }
   };
 
@@ -111,21 +97,27 @@ export default function Home() {
             <div className="m-register__form__main__fileupload">
               <label className="flex items-center gap-2 cursor-pointer" htmlFor='pdf-file'>
                 <FontAwesomeIcon icon={faFilePdf} className="text-2xl" />
-                Click to upload file
+                {selectedFileName}
               </label>
               <input
                 ref={fileInputRef}
+                style={{ display: 'none' }}
                 type="file"
                 id='pdf-file'
                 name="pdf-file"
                 accept="application/pdf"
-                hidden
                 required
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  setSelectedFileName(file ? file.name : 'Click to upload file');
+                }}
               />
             </div>
           </div>
 
-          <button type='submit' ref={submitBtnRef} id='submit-btn' className='btn mt-9'>Confirm</button>
+          <button type='submit' ref={submitBtnRef} id='submit-btn' className='btn mt-9'>
+            Confirm
+          </button>
         </form>
       </div>
 
