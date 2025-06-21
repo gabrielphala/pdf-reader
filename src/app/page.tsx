@@ -1,103 +1,142 @@
-import Image from "next/image";
+'use client';
+import { useRouter } from 'next/navigation';
+
+import { useContext, useRef } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFilePdf } from '@fortawesome/free-solid-svg-icons';
+
+import { postWithAxios } from '@/helpers/https';
+import { UserContext } from '@/contexts/UserContext';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  /**
+   * Refs to html elements to set / get data
+   */
+  const formRef = useRef<HTMLFormElement>(null);
+  const submitBtnRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { setUserData } = useContext(UserContext);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    /**
+     * Good practice for 'pseudo-debounce' effect
+     * Prevents too many submissions
+     */
+    if (submitBtnRef.current) {
+      submitBtnRef.current.style.backgroundColor = '#999';
+      submitBtnRef.current.disabled = true;
+    }
+      
+
+    const form = formRef.current;
+    const fileInput = fileInputRef.current;
+
+    if (!form || !fileInput || !fileInput.files?.[0]) {
+      return;
+    }
+
+    /**
+     * Prepare to post user data and file data
+     */
+    const formData = new FormData();
+    formData.append('first-name', form['first-name'].value);
+    formData.append('last-name', form['last-name'].value);
+    formData.append('date-of-birth', form['date-of-birth'].value);
+    formData.append('pdf-file', fileInput.files[0]);
+
+    try {
+      /**
+       * Send a POST request to express.js server
+       */
+      const res = await postWithAxios('/api/upload', formData);
+
+      /**
+       * When successful, set data in a context for later retrieval
+       */
+      if (res.successful) {
+        setUserData({
+          fullName: res.fullName,
+          age: res.age,
+          text: res.text
+        })
+        
+        /**
+         * Navigate to results page
+         */
+        router.push('/results')
+      }
+
+      /**
+       * Return button to normal state
+       */
+      if (submitBtnRef.current) {
+        submitBtnRef.current.style.backgroundColor = '#A10046';
+        submitBtnRef.current.disabled = false;
+      }
+    } catch (err) {
+    }
+  };
+
+  return (
+    <div className="m-register flex">
+      <div className="m-register__form flex-1">
+        <h1 className="text-7xl">OneWay Inc.</h1>
+        <p className="text-2xl">Welcome to our platform</p>
+        <p><small className="text-gray-500">Powered by pdf parse</small></p>
+
+        <form method='post' ref={formRef} className="register__form__main mt-10" onSubmit={handleSubmit}>
+          <div className="twin-inputs justify-between">
+            <div className="input">
+              <label htmlFor="first-name">First name</label>
+              <input type="text" id="first-name" name="first-name" placeholder="e.g. John" required />
+            </div>
+
+            <div className="input">
+              <label htmlFor="last-name">Last name</label>
+              <input type="text" id="last-name" name="last-name" placeholder="e.g. Doe" required />
+            </div>
+          </div>
+
+          <div className="twin-inputs mt-5 justify-between items-center">
+            <div className="input">
+              <label htmlFor="date-of-birth">Date of birth</label>
+              <input type="date" id="date-of-birth" name="date-of-birth" required />
+            </div>
+
+            <div className="m-register__form__main__fileupload">
+              <label className="flex items-center gap-2 cursor-pointer" htmlFor='pdf-file'>
+                <FontAwesomeIcon icon={faFilePdf} className="text-2xl" />
+                Click to upload file
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                id='pdf-file'
+                name="pdf-file"
+                accept="application/pdf"
+                hidden
+                required
+              />
+            </div>
+          </div>
+
+          <button type='submit' ref={submitBtnRef} id='submit-btn' className='btn mt-9'>Confirm</button>
+        </form>
+      </div>
+
+      <div className="m-register__caption flex-1 relative">
+        <div className="m-register__caption__grid absolute" />
+        <div className="m-register__caption__msg absolute">
+          <h1 className='text-6xl'>Welcome to OneWay Inc creativity centre.</h1>
+          <p className='text-3xl'>Where Innovation meets vision.</p>
+          <p>Sign up.</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }
