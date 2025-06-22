@@ -4,6 +4,7 @@ import express, { Request, Response } from "express";
 import next from "next";
 
 import { anyFiles } from "../helpers/multer";
+import v, {Validator} from '../helpers/Validator';
 
 const pdfParse = require('pdf-parse');
 
@@ -26,10 +27,7 @@ function calculateAge(date: string | Date): number {
   const dob = new Date(date);
   const now = new Date();
 
-  /**
-   * Get age or fallback to 1
-   */
-  let age = now.getFullYear() - dob.getFullYear() || 1;
+  let age = now.getFullYear() - dob.getFullYear();
 
   return age;
 }
@@ -57,7 +55,7 @@ app.prepare().then(() => {
     let response: Record<string, string | null | boolean | number> = {
       error: null,
       success: false,
-      fullName: `${firstName} ${lastName}`,
+      fullName: '',
       age: null,
       text: ''
     }
@@ -70,8 +68,26 @@ app.prepare().then(() => {
        * If no file is detected throw below error
        */
       if (!file) throw 'Please upload file'
+
+      /**
+       * Validate input
+       */
+      v.validate({
+        'First name': { value: firstName, min: 3, max: 50, type: Validator.NAME },
+        'Last name': { value: lastName, min: 3, max: 50, type: Validator.NAME },
+      })
+
+      response.fullName = `${firstName} ${lastName}`;
       
+      /**
+       * Calcuate age from todaye
+       */
       response.age = calculateAge(dob);
+
+      /**
+       * Validate age
+       */
+      if (response.age < 18) throw 'You must be at least 18 years old'
       
       const dataBuffer = fs.readFileSync(file.path);
 
@@ -85,7 +101,6 @@ app.prepare().then(() => {
     } catch (e: any) {
       response.error = typeof e == 'object' ? 'Something went wrong, please try again later!' : e;
     }
-
 
     res.status(200).json(response);
   });
